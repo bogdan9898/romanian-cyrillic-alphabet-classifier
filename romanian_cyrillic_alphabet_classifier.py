@@ -2,6 +2,8 @@ import os
 from tkinter import *
 import imageio
 import numpy as np
+from keras import Sequential
+from keras.layers import Conv2D, Dense, Flatten, MaxPool2D
 
 index = 0
 letter = 'a'
@@ -52,11 +54,19 @@ canvas = Canvas(root, width = 100, height = 100)
 canvas.pack()
 canvas.bind('<Button-1>', showImages)
 
+trainButton = Button(root, text = 'Train', command = train)
+trainButton.pack()
+
 dataSet = {}
 loadData('char_trainable_split')
 
-trainButton = Button(root, text = 'Train', command = train)
-trainButton.pack()
+model = Sequential()
+model.add(Conv2D(filters=16, kernel_size=5, activision='relu'))
+model.add(MaxPool2D(pool_size=(3,3))
+model.add(Conv2D(filters=32, kernel_size=3, activision='relu'))
+model.add(MaxPool2D(pool_size=(3,3)))
+model.add(Flatten())
+model.add(Dense(32, activation='softmax'))
 
 root.mainloop()
 
