@@ -1,10 +1,7 @@
 import os
 from tkinter import *
 import imageio
-
-# custom modules
-from image import *
-from cnn import CNN
+import numpy as np
 
 index = 0
 letter = 'a'
@@ -58,20 +55,8 @@ canvas.bind('<Button-1>', showImages)
 dataSet = {}
 loadData('char_trainable_split')
 
-# cnn = CNN((100, 100), 'C10,4-R-C4,2-R-P3,3-C5,2-R-P4,4-F32')
-# cnn = CNN((100, 100), 'C10,4-R-C4,2-R-P2,2-C5,2-R-P2,2-F32')
-cnn = CNN((100, 100), 'C5,4-R-P2,2-C5,4-R-P2,2-F32')
-# cnn = CNN((100, 100), 'C10,7-R-P3,3-C5,5-R-P2,2-F32')
-
-print(cnn)
-
 trainButton = Button(root, text = 'Train', command = train)
 trainButton.pack()
-
-result = cnn.feedForward(dataSet['a'][0])
-print(result.shape)
-print(result)
-print(np.argmax(result))
 
 root.mainloop()
 
