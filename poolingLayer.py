@@ -1,5 +1,5 @@
 import scipy
-import skimage
+import skimage.measure
 import numpy as np
 
 class Pooling:
@@ -17,7 +17,7 @@ class Pooling:
 		y = []
 		if isinstance(x, list):
 			for el in x:
-				y.append(skimage.measure.block_reduce(x, block_size = (self.filterSize, self.filterSize), func = np.max, cval = 255))
+				y.append(skimage.measure.block_reduce(el, block_size = (self.filterSize, self.filterSize), func = np.max, cval = 255))
 		elif isinstance(x, np.ndarray):
 			# y = scipy.ndimage.maximum_filter(x, size = (self.filterSize, self.filterSize), mode = 'constant', cval = 255)
 			y = skimage.measure.block_reduce(x, block_size = (self.filterSize, self.filterSize), func = np.max, cval = 255)

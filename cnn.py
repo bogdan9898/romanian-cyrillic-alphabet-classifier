@@ -37,8 +37,6 @@ class CNN:
 			else:
 				raise Exception('Invalid argument: {0}'.format(layer))
 
-			# print(currentLayerShape)
-
 	def __repr__(self):
 		t = 'CNN:\n'
 		for layer in self.layers:
@@ -49,7 +47,9 @@ class CNN:
 		return self.__repr__()
 
 	def feedForward(self, data):
-		pass
+		for layer in self.layers:
+			data = layer.feedForward(data)
+		return data
 
 	def train(self, trainData, testData):
 		pass

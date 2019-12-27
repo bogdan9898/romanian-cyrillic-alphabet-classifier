@@ -38,7 +38,7 @@ def readDirectory(path):
 							if not isinstance(dataSet.get(entry.name), list):
 								dataSet[entry.name] = []
 							# dataSet[entry.name].append(MonoImage(width, height, data))
-							dataSet[entry.name].append(np.dot(data[...,:3], [0.2989, 0.5870, 0.1140]))
+							dataSet[entry.name].append(np.dot(data[...,:3], [0.2989, 0.5870, 0.1140]))#.astype(np.float128))
 
 
 def loadData(path):
@@ -48,7 +48,7 @@ def loadData(path):
 	print('data loaded')
 
 def train():
-	print('ok')
+	print('todo...')
 
 root = Tk()
 canvas = Canvas(root, width = 100, height = 100)
@@ -56,7 +56,7 @@ canvas.pack()
 canvas.bind('<Button-1>', showImages)
 
 dataSet = {}
-# loadData('char_trainable_split')
+loadData('char_trainable_split')
 
 # cnn = CNN((100, 100), 'C10,4-R-C4,2-R-P3,3-C5,2-R-P4,4-F32')
 # cnn = CNN((100, 100), 'C10,4-R-C4,2-R-P2,2-C5,2-R-P2,2-F32')
@@ -68,5 +68,10 @@ print(cnn)
 trainButton = Button(root, text = 'Train', command = train)
 trainButton.pack()
 
+result = cnn.feedForward(dataSet['a'][0])
+print(result.shape)
+print(result)
+print(np.argmax(result))
 
 root.mainloop()
+

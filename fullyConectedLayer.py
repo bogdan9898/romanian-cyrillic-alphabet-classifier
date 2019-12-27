@@ -13,8 +13,21 @@ class FullyConected:
 		return self.__repr__()
 
 	def feedForward(self, x):
-		# todo: flatten x to 1 dimensional array, matrix dot product between x and weights
-		pass
+		# flatten x to 1 dimensional array, matrix dot product between x and weights
+		x = np.array(x)
+		x = x.flatten()
+		print(x.shape)
+		print(x.dtype)
+		return np.dot(self.weights, x)
+		return FullyConected.sigmoid(np.dot(self.weights, x))
 
 	def backpropagation(self, trainData, testData):
 		pass
+
+	@staticmethod
+	def sigmoid(x):
+		return 1 / (1 + np.exp(-x))
+
+	@staticmethod
+	def sigmoid_derivative(x):
+		return sigmoid(x) * (1 - sigmoid(x))
