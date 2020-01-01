@@ -3,6 +3,7 @@ from tkinter import *
 import imageio
 from multiprocessing import Process
 import json
+from copy import copy
 from datetime import datetime
 import math
 import numpy as np
@@ -78,8 +79,7 @@ def loadData(path):
 	# 	print(list(dataSet[el].keys()) == labelsOrder)
 	# print(labelsOrder)
 
-def train():
-	global dataSet, labelsOrder, model
+def train(dataSet, labelsOrder, model):
 	# process training data
 	input_train_data = []
 	train_data_labels = []
@@ -88,10 +88,13 @@ def train():
 		# print(j, letter)
 		# j += 1
 		# for el in letter:
-		for i in range(min(len(dataSet['train'][letter]), 999999)):
+		nr_elements = min(len(dataSet['train'][letter]), 80)
+		samples = sample(dataSet2['train'][letter], nr_elements)
+		input_train_data.extent(samples)
+		for i in range(nr_elements):
 			# print('\t', i)
-			el = dataSet['train'][letter][i]
-			input_train_data.append(el)
+			# el = dataSet['train'][letter][i]
+			# input_train_data.append(el)
 			tmp = [0 for x in range(len(labelsOrder))]
 			tmp[labelsOrder.index(letter)] = 1
 			train_data_labels.append(tmp)
@@ -147,40 +150,141 @@ def saveModel():
 def loadModel():
 	global model
 	fileName = loadModelSelectedFile.get()
-	model = models.load_model('./models/' + fileName)
+	if not fileName.startswith('--'):
+		model = models.load_model('./models/' + fileName)
 
-# setup GUI
+def saveModel2():
+	global model2
+	if not os.path.isdir('./models/'):
+		os.mkdir('./models/')
+	model2.save('./models/' + datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.h5')
+
+def loadModel2():
+	global model2
+	fileName = loadModelSelectedFile.get()
+	if not fileName.startswith('--'):
+		model2 = models.load_model('./models/' + fileName)
+
+def calcFScore(dataSet, labelsOrder, model):
+	stats = {}
+	for letter in labelsOrder:
+		stats[letter] = {
+			'right predictions': 0,
+			'total predictions': 0,
+		}
+	for letter in dataSet['test']:
+		for sample in dataSet['test'][letter]:
+			input_data = np.array([sample])
+			input_data = input_data.reshape(*input_data.shape, 1)
+			prediction = model.predict(input_data)
+			output_letter = labelsOrder[np.argmax(prediction)]
+			if output_letter == letter:
+				stats[letter]['right predictions'] += 1
+				stats[letter]['total predictions'] += 1
+			else:
+				stats[output_letter]['total predictions'] += 1
+	print(json.dumps(stats, indent=2))
+	fscores = {}
+	for letter in stats:
+		precision = calcPrecision(stats, letter)
+		recall = calcRecall(stats, letter, dataSet)
+		if precision <= 0 and recall <= 0:
+			fscores[letter] = 0
+		else:
+			fscores[letter] = 2 * ((precision * recall) / (precision + recall))
+	return fscores
+
+def calcPrecision(stats, letter):
+	if stats[letter]['total predictions'] <= 0:
+		return 0
+	return stats[letter]['right predictions'] / stats[letter]['total predictions']
+
+def calcRecall(stats, letter, dataSet):
+	if len(dataSet['test'][letter]) <= 0:
+		return 0
+	return stats[letter]['right predictions'] / len(dataSet['test'][letter])
+
+def printFScore():
+	global dataSet, labelsOrder, model
+	fscore = calcFScore(dataSet, labelsOrder, model)
+	print('Model 1:\n\tF-Score:')
+	print(json.dumps(fscore, indent=2))
+	print('\tAverage f-score:', sum(fscore.values()) / len(fscore.values()))
+
+	global dataSet2, model2
+	fscore = calcFScore(dataSet2, labelsOrder, model2)
+	print('Model 2:\n\tF-Score:')
+	print(json.dumps(fscore, indent=2))
+	print('\tAverage f-score:', sum(fscore.values()) / len(fscore.values()))
+
+def trainM1():
+	global dataSet, labelsOrder, model
+	train(dataSet, labelsOrder, model)
+
+def trainM2():
+	global dataSet2, labelsOrder, model2
+	train(dataSet2, labelsOrder, model2)
+
+def genModel():
+	global model2
+	model2 = Sequential()
+	model2.add(Conv2D(filters=10, kernel_size=8, padding='same', activation='relu', input_shape=(100, 100, 1)))
+	model2.add(MaxPool2D(pool_size=(3, 3)))
+	model2.add(Conv2D(filters=5, kernel_size=5, padding='same', activation='relu'))
+	model2.add(MaxPool2D(pool_size=(3, 3)))
+	model2.add(Conv2D(filters=3, kernel_size=4, padding='same', activation='relu'))
+	model2.add(Conv2D(filters=5, kernel_size=4, padding='same', activation='relu'))
+	model2.add(Flatten())
+	model2.add(Dense(32, activation='softmax'))
+	model2.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# GUI setup
 root = Tk()
 root.title('Romanian cyrillic alphabet classifier')
 root.resizable(0, 0)
 
-frame1 = Frame(root, width=500, height=500, bg='#264653')
-frame1.pack()
-frame1.pack_propagate(0) # dont allow widgets to change size
+bkgFrame = Frame(root, width=500, height=500, bg='#264653')
+bkgFrame.pack()
+bkgFrame.grid_propagate(0)
+bkgFrame.pack_propagate(0)
+
+frame1 = Frame(bkgFrame, bg='#264653')
+frame1.place(relx=0.5, rely=0.5, anchor=CENTER)
+# frame1.pack()
+# frame1.pack_propagate(0) # dont allow widgets to change size
+# frame1.grid_propagate(0)
+
+genModel = Button(frame1, text='gen model', command=genModel)
+genModel.grid()
 
 predictedOutput = StringVar()
-predictedOutput.set('Predicted output will appear here')
-Label(frame1, textvariable=predictedOutput, bg='#264653', fg='#FFFFFF', font=(None, 20)).pack()
+predictedOutput.set('No output')
+Label(frame1, textvariable=predictedOutput, bg='#264653', fg='#FFFFFF', font=(None, 20)).grid(row=0, columnspan=2)#.pack()
 
 canvas = Canvas(frame1, width=100, height=100, bg='#264653')
-canvas.pack()
+# canvas.pack()
+canvas.grid(row=1, columnspan=2)
 canvas.bind('<Button-1>', showImages)
 
-trainButton = Button(frame1, text='Train', command=train, bg='#2A9D8F', highlightthickness=0, pady=10)
-trainButton.pack()
+trainM1Button = Button(frame1, text='Train model 1', command=trainM1, bg='#2A9D8F', highlightthickness=0, pady=10)
+trainM1Button.grid(row=2, column=0)
+# trainM1Button.pack()
+
+trainM2Button = Button(frame1, text='Train model 2', command=trainM2, bg='#2A9D8F', highlightthickness=0, pady=10)
+trainM2Button.grid(row=2, column=1)
+# trainM2Button.pack()
 
 predictButton = Button(frame1, text='Predict', command=predict, bg='#2A9D8F', highlightthickness=0, pady=10)
-predictButton.pack()
+predictButton.grid(row=3, columnspan=2)
+# predictButton.pack()
+
+printFScore = Button(frame1, text='Print F-Score', command=printFScore, bg='#2A9D8F', highlightthickness=0, pady=10)
+printFScore.grid(row=4, columnspan=2)
+# printFScore.pack()
 
 modelsDirectoryPath = './models/'
-saveModelButton = Button(frame1, text='Save model', command=saveModel, bg='#2A9D8F', highlightthickness=0, pady=10)
-saveModelButton.pack()
-
-loadModelButton = Button(frame1, text='Load model', command=loadModel, bg='#2A9D8F', highlightthickness=0, pady=10)
-loadModelButton.pack()
-
 modelFileOptions = [
-	'Choose a file to load an existing model',
+	'-- Already existing models --',
 ]
 with os.scandir(modelsDirectoryPath) as folder:
 	for entry in folder:
@@ -190,8 +294,24 @@ print(modelFileOptions)
 
 loadModelSelectedFile = StringVar()
 loadModelSelectedFile.set(modelFileOptions[0])
-OptionMenu(frame1, loadModelSelectedFile, *modelFileOptions).pack()
-# end setup GUI
+OptionMenu(frame1, loadModelSelectedFile, *modelFileOptions).grid(row=5, columnspan=2)#.pack()
+
+loadModelButton = Button(frame1, text='Load model 1', command=loadModel, bg='#2A9D8F', highlightthickness=0, pady=10)
+loadModelButton.grid(row=6, column=0)
+# loadModelButton.pack()
+
+saveModelButton = Button(frame1, text='Save model 1', command=saveModel, bg='#2A9D8F', highlightthickness=0, pady=10)
+saveModelButton.grid(row=7, column=0)
+# saveModelButton.pack()
+
+loadModelButton2 = Button(frame1, text='Load model 2', command=loadModel2, bg='#2A9D8F', highlightthickness=0, pady=10)
+loadModelButton2.grid(row=6, column=1)
+# loadModelButton2.pack()
+
+saveModelButton2 = Button(frame1, text='Save model 2', command=saveModel2, bg='#2A9D8F', highlightthickness=0, pady=10)
+saveModelButton2.grid(row=7, column=1)
+# saveModelButton2.pack()
+# end GUI setup
 
 '''
 dataSet: {
@@ -237,6 +357,28 @@ model.add(Conv2D(filters=5, kernel_size=4, padding='same', activation='relu'))
 model.add(Flatten())
 model.add(Dense(32, activation='softmax'))
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+######
+model2 = Sequential()
+model2.add(Conv2D(filters=10, kernel_size=8, padding='same', activation='relu', input_shape=(100, 100, 1)))
+model2.add(MaxPool2D(pool_size=(3, 3)))
+model2.add(Conv2D(filters=5, kernel_size=5, padding='same', activation='relu'))
+model2.add(MaxPool2D(pool_size=(3, 3)))
+model2.add(Conv2D(filters=3, kernel_size=4, padding='same', activation='relu'))
+model2.add(Conv2D(filters=5, kernel_size=4, padding='same', activation='relu'))
+model2.add(Flatten())
+model2.add(Dense(32, activation='softmax'))
+model2.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+dataSet2 = copy(dataSet)
+tmp = ['dz', 'ia']
+for t in tmp:
+	# print(len(dataSet2['train'][t]))
+	for i in range(3):
+		dataSet2['train'][t].extend(dataSet2['train'][t])
+		dataSet2['train'][t].extent(dataSet2['test'][t])
+	# print(len(dataSet2['train'][t]))
+######
 
 root.mainloop()
 
