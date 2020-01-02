@@ -4,7 +4,7 @@ import imageio
 # from multiprocessing import Process
 import json
 import random
-from copy import copy
+from copy import deepcopy
 from datetime import datetime
 import math
 import numpy as np
@@ -14,6 +14,8 @@ from keras.utils import to_categorical
 from keras import models
 # pip3 install tensorflow==1.5
 # pip3 install keras==2.1.5
+import matplotlib
+import matplotlib.pyplot as plt
 
 index = 0
 letter = 'a'
@@ -89,7 +91,7 @@ def train(dataSet, labelsOrder, model):
 		# print(j, letter)
 		# j += 1
 		# for el in letter:
-		nr_elements = min(len(dataSet['train'][letter]), 80)
+		nr_elements = min(len(dataSet['train'][letter]), 99999)
 		samples = random.sample(dataSet2['train'][letter], nr_elements)
 		input_train_data.extend(samples)
 		for i in range(nr_elements):
@@ -127,16 +129,27 @@ def train(dataSet, labelsOrder, model):
 	model.fit(input_train_data, train_data_labels, validation_data=(input_test_data, test_data_labels), epochs=8, batch_size=16)
 	# print('todo...')
 
-def predict():
+def predictM1():
 	global dataSet, labelsOrder, model, predictedOutput
-	# print(to_categorical(labelsOrder, num_classes=len(labelsOrder)))
-	# return
 	input_data = dataSet['test']['a2'][0]
 	renderImage(input_data)
 	input_data = np.array([input_data])
 	input_data = input_data.reshape(*input_data.shape, 1)
 	print(input_data.shape)
 	prediction = model.predict(input_data)
+	print(prediction)
+	predictedLetter = labelsOrder[np.argmax(prediction)]
+	print(np.argmax(prediction), predictedLetter)
+	predictedOutput.set(predictedLetter)
+
+def predictM2():
+	global dataSet2, labelsOrder, model2, predictedOutput
+	input_data = dataSet2['test']['a2'][0]
+	renderImage(input_data)
+	input_data = np.array([input_data])
+	input_data = input_data.reshape(*input_data.shape, 1)
+	print(input_data.shape)
+	prediction = model2.predict(input_data)
 	print(prediction)
 	predictedLetter = labelsOrder[np.argmax(prediction)]
 	print(np.argmax(prediction), predictedLetter)
@@ -226,7 +239,7 @@ def trainM2():
 	global dataSet2, labelsOrder, model2
 	train(dataSet2, labelsOrder, model2)
 
-def genModel():
+def genModel(): #DELETE ME!
 	global model2
 	model2 = Sequential()
 	model2.add(Conv2D(filters=10, kernel_size=8, padding='same', activation='relu', input_shape=(100, 100, 1)))
@@ -238,6 +251,63 @@ def genModel():
 	model2.add(Flatten())
 	model2.add(Dense(32, activation='softmax'))
 	model2.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+def showHeight(bars, ax):
+	for bar in bars:
+		h = bar.get_height()
+		ax.annotate(str(h), xy=(bar.get_x() + bar.get_width() / 2, h), xytext=(0, 3),
+                    textcoords="offset points", ha='center', va='bottom')
+
+def plotDataset(dataSet, labelsOrder):
+	train_data = [len(dataSet['train'][i]) for i in labelsOrder]
+	test_data = [len(dataSet['test'][i]) for i in labelsOrder]
+	bars_width = 0.4
+
+	x = np.arange(len(labelsOrder))
+	fig, ax = plt.subplots()
+	train_bars = ax.bar(x - bars_width / 2, train_data, bars_width, label='Train')
+	test_bars = ax.bar(x + bars_width / 2, test_data, bars_width, label='Test')
+
+	ax.set_ylabel('Nr of input instances')
+	ax.set_title('Distribution of data for every class')
+	ax.set_xticks(x)
+	ax.set_xticklabels(labelsOrder)
+	ax.legend()
+
+	fig.set_size_inches(12, 12)
+	fig.tight_layout()
+
+	showHeight(train_bars, ax)
+	showHeight(test_bars, ax)
+
+def plotFScores(fScores, labelsOrder):
+	fScores = [fScores[i] for i in labelsOrder]
+	bars_width = 0.4
+
+	x = np.arange(len(labelsOrder))
+	fig, ax = plt.subplots()
+	scores_bars = ax.bar(x, fScores, bars_width, label='Train')
+
+	ax.set_ylabel('F-score')
+	ax.set_title('F-score for every class\nAverage:{0}'.format(sum(fScores) / len(fScores)))
+	ax.set_xticks(x)
+	ax.set_xticklabels(labelsOrder)
+
+	fig.set_size_inches(12, 12)
+	fig.tight_layout()
+
+	# showHeight(scores_bars, ax)
+
+def showPlots():
+	# data distribution
+	global labelsOrder, dataSet, dataSet2, model, model2
+	plotDataset(dataSet, labelsOrder)
+
+	# f scores
+	plotFScores(calcFScore(dataSet, labelsOrder, model), labelsOrder)
+	plotFScores(calcFScore(dataSet2, labelsOrder, model2), labelsOrder)
+
+	plt.show()
 
 # GUI setup
 root = Tk()
@@ -255,33 +325,31 @@ frame1.place(relx=0.5, rely=0.5, anchor=CENTER)
 # frame1.pack_propagate(0) # dont allow widgets to change size
 # frame1.grid_propagate(0)
 
-genModel = Button(frame1, text='gen model', command=genModel)
-genModel.grid()
+# genModel = Button(frame1, text='gen model', command=genModel)
+# genModel.grid()
 
 predictedOutput = StringVar()
 predictedOutput.set('No output')
-Label(frame1, textvariable=predictedOutput, bg='#264653', fg='#FFFFFF', font=(None, 20)).grid(row=0, columnspan=2)#.pack()
+Label(frame1, textvariable=predictedOutput, bg='#264653', fg='#FFFFFF', font=(None, 20)).grid(row=0, columnspan=2)
 
 canvas = Canvas(frame1, width=100, height=100, bg='#264653')
-# canvas.pack()
 canvas.grid(row=1, columnspan=2)
 canvas.bind('<Button-1>', showImages)
 
 trainM1Button = Button(frame1, text='Train model 1', command=trainM1, bg='#2A9D8F', highlightthickness=0, pady=10)
 trainM1Button.grid(row=2, column=0)
-# trainM1Button.pack()
 
 trainM2Button = Button(frame1, text='Train model 2', command=trainM2, bg='#2A9D8F', highlightthickness=0, pady=10)
 trainM2Button.grid(row=2, column=1)
-# trainM2Button.pack()
 
-predictButton = Button(frame1, text='Predict', command=predict, bg='#2A9D8F', highlightthickness=0, pady=10)
-predictButton.grid(row=3, columnspan=2)
-# predictButton.pack()
+predictButton = Button(frame1, text='Predict M1', command=predictM1, bg='#2A9D8F', highlightthickness=0, pady=10)
+predictButton.grid(row=3, column=0)
+
+predictButton2 = Button(frame1, text='Predict M2', command=predictM2, bg='#2A9D8F', highlightthickness=0, pady=10)
+predictButton2.grid(row=3, column=1)
 
 printFScore = Button(frame1, text='Print F-Score', command=printFScore, bg='#2A9D8F', highlightthickness=0, pady=10)
 printFScore.grid(row=4, columnspan=2)
-# printFScore.pack()
 
 modelsDirectoryPath = './models/'
 modelFileOptions = [
@@ -295,23 +363,22 @@ print(modelFileOptions)
 
 loadModelSelectedFile = StringVar()
 loadModelSelectedFile.set(modelFileOptions[0])
-OptionMenu(frame1, loadModelSelectedFile, *modelFileOptions).grid(row=5, columnspan=2)#.pack()
+OptionMenu(frame1, loadModelSelectedFile, *modelFileOptions).grid(row=5, columnspan=2)
 
 loadModelButton = Button(frame1, text='Load model 1', command=loadModel, bg='#2A9D8F', highlightthickness=0, pady=10)
 loadModelButton.grid(row=6, column=0)
-# loadModelButton.pack()
 
 saveModelButton = Button(frame1, text='Save model 1', command=saveModel, bg='#2A9D8F', highlightthickness=0, pady=10)
 saveModelButton.grid(row=7, column=0)
-# saveModelButton.pack()
 
 loadModelButton2 = Button(frame1, text='Load model 2', command=loadModel2, bg='#2A9D8F', highlightthickness=0, pady=10)
 loadModelButton2.grid(row=6, column=1)
-# loadModelButton2.pack()
 
 saveModelButton2 = Button(frame1, text='Save model 2', command=saveModel2, bg='#2A9D8F', highlightthickness=0, pady=10)
 saveModelButton2.grid(row=7, column=1)
-# saveModelButton2.pack()
+
+showPlotsButton = Button(frame1, text='Show plots', command=showPlots, bg='#2A9D8F', highlightthickness=0, pady=10)
+showPlotsButton.grid(row=8, columnspan=2)
 # end GUI setup
 
 '''
@@ -372,7 +439,7 @@ model2.add(Dense(64, activation='relu'))
 model2.add(Dense(32, activation='sigmoid'))
 model2.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-dataSet2 = copy(dataSet)
+dataSet2 = deepcopy(dataSet)
 tmp = ['dz', 'ia']
 for t in tmp:
 	# print(len(dataSet2['train'][t]))
