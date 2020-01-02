@@ -1,8 +1,9 @@
 import os
 from tkinter import *
 import imageio
-from multiprocessing import Process
+# from multiprocessing import Process
 import json
+import random
 from copy import copy
 from datetime import datetime
 import math
@@ -89,8 +90,8 @@ def train(dataSet, labelsOrder, model):
 		# j += 1
 		# for el in letter:
 		nr_elements = min(len(dataSet['train'][letter]), 80)
-		samples = sample(dataSet2['train'][letter], nr_elements)
-		input_train_data.extent(samples)
+		samples = random.sample(dataSet2['train'][letter], nr_elements)
+		input_train_data.extend(samples)
 		for i in range(nr_elements):
 			# print('\t', i)
 			# el = dataSet['train'][letter][i]
@@ -376,7 +377,7 @@ for t in tmp:
 	# print(len(dataSet2['train'][t]))
 	for i in range(3):
 		dataSet2['train'][t].extend(dataSet2['train'][t])
-		dataSet2['train'][t].extent(dataSet2['test'][t])
+		dataSet2['train'][t].extend(dataSet2['test'][t])
 	# print(len(dataSet2['train'][t]))
 ######
 
