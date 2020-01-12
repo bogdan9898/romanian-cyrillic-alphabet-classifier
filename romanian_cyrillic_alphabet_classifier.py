@@ -8,6 +8,7 @@ from copy import deepcopy
 from datetime import datetime
 import math
 import numpy as np
+import cv2
 from keras import Sequential
 from keras.layers import Conv2D, Dense, Flatten, MaxPool2D
 from keras.utils import to_categorical
@@ -26,7 +27,8 @@ def showImages(event): # DELETE ME!
 	index += 1
 
 def renderImage(imageData): # only grayspace images
-	global dataSet
+	global canvas
+	canvas.delete('all')
 	for j in range(imageData.shape[0]):
 		for i in range(imageData.shape[1]):
 			canvas.create_oval(i, j, i + 1, j + 1, outline = '#ffffff' if imageData[j, i] else '#000000', fill = '')
@@ -130,8 +132,10 @@ def train(dataSet, labelsOrder, model):
 	# print('todo...')
 
 def predictM1():
-	global dataSet, labelsOrder, model, predictedOutput
-	input_data = dataSet['test']['a2'][0]
+	global labelsOrder, model, predictedOutput, drawnImage
+	grayscaleImage = cv2.cvtColor(drawnImage, cv2.COLOR_BGR2GRAY)
+	input_data = cv2.resize(grayscaleImage, (100, 100))
+	# input_data = drawnImage[::(drawnImage.shape[0] // 100), ::(drawnImage.shape[1] // 100)] # resize image to 100x100
 	renderImage(input_data)
 	input_data = np.array([input_data])
 	input_data = input_data.reshape(*input_data.shape, 1)
@@ -144,7 +148,9 @@ def predictM1():
 
 def predictM2():
 	global dataSet2, labelsOrder, model2, predictedOutput
-	input_data = dataSet2['test']['a2'][0]
+	grayscaleImage = cv2.cvtColor(drawnImage, cv2.COLOR_BGR2GRAY)
+	input_data = cv2.resize(grayscaleImage, (100, 100))
+	# input_data = drawnImage[::(drawnImage.shape[0] // 100), ::(drawnImage.shape[1] // 100)] # resize image to 100x100
 	renderImage(input_data)
 	input_data = np.array([input_data])
 	input_data = input_data.reshape(*input_data.shape, 1)
@@ -309,13 +315,69 @@ def showPlots():
 
 	plt.show()
 
+prevMouse = {
+	'x': -1,
+	'y': -1,
+}
+def mouseDraw(event):
+	global drawing_canvas, drawnImage
+	if event.x < 0 or event.x >= drawnImage.shape[1] or event.y < 0 or event.y >= drawnImage.shape[0]: # not in bound
+		return
+
+	print(event)
+	i = event.x
+	j = event.y
+	cv2.circle(drawnImage, center=(event.x, event.y), radius=7, color=(0,0,0), thickness=-1)
+	# if prevMouse['x'] > 0 and prevMouse['y'] > 0:
+		# cv2.line(drawnImage,(prevMouse['x'], prevMouse['y']),(event.x, event.y),(0,0,0), 10)
+	prevMouse['x'] = event.x
+	prevMouse['y'] = event.y
+	radius = 5
+	drawing_canvas.create_oval(i-radius, j-radius, i + radius*2, j + radius*2, outline = '#000000', fill = '#000000')
+
+def clearPrevMouse(event):
+	prevMouse['x'] = -1
+	prevMouse['y'] = -1
+
+def clearCanvas():
+	global drawing_canvas, drawnImage
+	drawnImage = np.full(shape=(400, 400, 3), fill_value=255, dtype=np.uint8)
+	drawing_canvas.delete('all')
+
 # GUI setup
 root = Tk()
 root.title('Romanian cyrillic alphabet classifier')
 root.resizable(0, 0)
 
+bkgFrame2 = Frame(root, width=500, height=500, bg='#264653')
+bkgFrame2.pack(side='right')
+bkgFrame2.grid_propagate(0)
+bkgFrame2.pack_propagate(0)
+
+frame2 = Frame(bkgFrame2, width = 500, height=500, bg='#264653')
+frame2.place(relx=0.5, rely=0.5, anchor=CENTER)
+
+predictedOutput = StringVar()
+predictedOutput.set('No output')
+Label(frame2, textvariable=predictedOutput, bg='#264653', fg='#FFFFFF', font=(None, 20)).grid(row=0, column=1)
+
+drawnImage = np.full(shape=(400, 400, 3), fill_value=255, dtype=np.uint8)
+drawing_canvas = Canvas(frame2, width=400, height=400, bg='#ffffff')
+drawing_canvas.grid(row=1, column=0, columnspan=3)
+drawing_canvas.bind('<B1-Motion>', mouseDraw)
+drawing_canvas.bind('<ButtonRelease-1>', clearPrevMouse)
+
+predictButton = Button(frame2, text='Predict M1', command=predictM1, bg='#2A9D8F', highlightthickness=0, pady=10)
+predictButton.grid(row=2, column=0)
+
+predictButton2 = Button(frame2, text='Predict M2', command=predictM2, bg='#2A9D8F', highlightthickness=0, pady=10)
+predictButton2.grid(row=2, column=1)
+
+clearButton = Button(frame2, text='Clear', command=clearCanvas, bg='#cc2525', highlightthickness=0, pady=10)
+clearButton.grid(row=2, column=2)
+
 bkgFrame = Frame(root, width=500, height=500, bg='#264653')
-bkgFrame.pack()
+bkgFrame.pack(side='left')
 bkgFrame.grid_propagate(0)
 bkgFrame.pack_propagate(0)
 
@@ -328,10 +390,6 @@ frame1.place(relx=0.5, rely=0.5, anchor=CENTER)
 # genModel = Button(frame1, text='gen model', command=genModel)
 # genModel.grid()
 
-predictedOutput = StringVar()
-predictedOutput.set('No output')
-Label(frame1, textvariable=predictedOutput, bg='#264653', fg='#FFFFFF', font=(None, 20)).grid(row=0, columnspan=2)
-
 canvas = Canvas(frame1, width=100, height=100, bg='#264653')
 canvas.grid(row=1, columnspan=2)
 canvas.bind('<Button-1>', showImages)
@@ -341,12 +399,6 @@ trainM1Button.grid(row=2, column=0)
 
 trainM2Button = Button(frame1, text='Train model 2', command=trainM2, bg='#2A9D8F', highlightthickness=0, pady=10)
 trainM2Button.grid(row=2, column=1)
-
-predictButton = Button(frame1, text='Predict M1', command=predictM1, bg='#2A9D8F', highlightthickness=0, pady=10)
-predictButton.grid(row=3, column=0)
-
-predictButton2 = Button(frame1, text='Predict M2', command=predictM2, bg='#2A9D8F', highlightthickness=0, pady=10)
-predictButton2.grid(row=3, column=1)
 
 printFScore = Button(frame1, text='Print F-Score', command=printFScore, bg='#2A9D8F', highlightthickness=0, pady=10)
 printFScore.grid(row=4, columnspan=2)
