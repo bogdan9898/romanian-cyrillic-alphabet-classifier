@@ -333,7 +333,12 @@ def mouseDraw(event):
 	prevMouse['x'] = event.x
 	prevMouse['y'] = event.y
 	radius = 5
-	drawing_canvas.create_oval(i-radius, j-radius, i + radius*2, j + radius*2, outline = '#000000', fill = '#000000')
+	drawing_canvas.delete('all')
+	grayscaleImage = cv2.cvtColor(drawnImage, cv2.COLOR_BGR2GRAY)
+	for j in range(grayscaleImage.shape[0]):
+		for i in range(grayscaleImage.shape[1]):
+			drawing_canvas.create_oval(i-radius, j-radius, i + radius*2, j + radius*2, outline = '#ffffff' if grayscaleImage[j, i] else '#000000', fill = '')
+	drawing_canvas.update()
 
 def clearPrevMouse(event):
 	prevMouse['x'] = -1
